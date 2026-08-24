@@ -1,4 +1,4 @@
-# 📚 API Mongo - Sistema de Substituição de Aulas
+# 📚 API Mongo - Sistema para o Torneio de Robotica
 
 <div align="center">
 
@@ -7,7 +7,7 @@
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 
-**Uma API REST robusta para gerenciamento inteligente de substituições de aulas**
+**Uma API REST robusta para gerenciamento inteligente**
 
 [🚀 Começar](#instalação) •
 [📖 Documentação](#documentação) •
