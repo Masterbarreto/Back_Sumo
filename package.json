@@ -1,0 +1,43 @@
+{
+  "name": "back_sumo",
+  "version": "1.0.0",
+  "description": "API do site de Back_Sumo",
+  "author": "Pedro Henrique Vieira Barreto",
+  "license": "ISC",
+  "type": "module",
+  "main": "api/server/serves.js",
+  "scripts": {
+    "start": "node api/server/serves.js",
+    "dev": "nodemon api/server/serves.js"
+  },
+  "dependencies": {
+    "@segment/analytics-node": "^2.2.1",
+    "bcrypt": "^5.1.1",
+    "chalk": "^5.4.1",
+    "connect-mongo": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "http-status-codes": "^2.3.0",
+    "mongodb": "^6.16.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.2",
+    "nodemailer": "^7.0.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "yup": "^1.6.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Masterbarreto/Back_Sumo.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/Masterbarreto/Back_Sumo/issues"
+  },
+  "homepage": "https://github.com/Masterbarreto/Back_Sumo#readme"
+}
