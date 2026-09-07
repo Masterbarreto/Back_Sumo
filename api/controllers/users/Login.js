@@ -11,17 +11,18 @@ import "dotenv/config";
 const loginSchema = yup.object().shape({
     email: yup.string().email().required(),
     password: yup.string().required(),
+    remember: yup.boolean().optional(),
 });
 
 // Rota de login
 export async function loginUser(req, res) {
-    const { email, password } = req.body;
+    const { email, password, remember } = req.body;
     const db = await getDb();
     const usersCollection = db.collection("users");
 
     try {
         // Valida os dados recebidos
-        await loginSchema.validate({ email, password });
+        await loginSchema.validate({ email, password, remember });
 
         // Busca o usuário pelo email
         const user = await usersCollection.findOne({ email });
@@ -58,21 +59,28 @@ export async function loginUser(req, res) {
             console.log(chalk.yellow("Segment tracker error ignored in dev"));
         }
 
+        const isRemember = remember === true || remember === "true";
+
         // Gerar o token JWT
         const token = jwt.sign(
             { id: user._id.toString(), email: user.email, role: user.role || user.cargo },
             process.env.JWT_SECRET || "insira_uma_chave_aleatoria_longa_e_segura_aqui",
-            { expiresIn: "7d" }
+            { expiresIn: isRemember ? "30d" : "1d" }
         );
 
         // Injetar o token JWT diretamente em um Cookie HttpOnly
-        res.cookie("token", token, {
+        const cookieConfig = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
             domain: process.env.COOKIE_DOMAIN || undefined,
-        });
+        };
+
+        if (isRemember) {
+            cookieConfig.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 dias se 'Manter sessão ativa'
+        }
+
+        res.cookie("token", token, cookieConfig);
 
         // NÃO retornar o token no corpo do JSON
         return res.status(200).json({
