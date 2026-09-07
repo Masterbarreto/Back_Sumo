@@ -16,11 +16,29 @@ import MongoStore from "connect-mongo";
 import { getDb } from "../db.js";
 
 const server = express();
+const isProd = process.env.NODE_ENV === "production";
+const clientUrl = (process.env.CLIENT_URL || "").replace(/\/+$/, "");
+
+// Permitir cookies HTTPS seguros atrás do proxy reverso do Render
+server.set("trust proxy", 1);
 
 server.use(morgan("dev"));
 server.use(
     cors({
-        origin: process.env.CLIENT_URL || "http://localhost:5173",
+        origin: (origin, callback) => {
+            // Permite requisições sem origin (como curl, render healthcheck ou mobile)
+            if (!origin) return callback(null, true);
+            if (
+                (clientUrl && origin === clientUrl) ||
+                origin === "http://localhost:5173" ||
+                origin === "http://localhost:3000" ||
+                origin.endsWith(".vercel.app") ||
+                !isProd
+            ) {
+                return callback(null, true);
+            }
+            return callback(null, true);
+        },
         credentials: true,
     })
 );
@@ -36,7 +54,10 @@ getDb().then((db) => {
             resave: false,
             saveUninitialized: false,
             store: MongoStore.create({ client: db.client }),
-            cookie: { secure: false, sameSite: "lax" },
+            cookie: {
+                secure: isProd,
+                sameSite: isProd ? "none" : "lax",
+            },
         })
     );
 
@@ -70,9 +91,18 @@ getDb().then((db) => {
     const specs = swaggerJsdoc(options);
     server.use("/docs", swaggerUi.serve, swaggerUi.setup(specs));
 
+    // Health check para o Render e monitoramento
+    server.get("/", (req, res) => {
+        return res.status(StatusCodes.OK).json({
+            status: "ok",
+            message: "API Sumo Online 🚀",
+            timestamp: new Date().toISOString(),
+        });
+    });
+
     // 404 Error Handler
     server.use((req, res) => {
-        console.log(chalk.yellow("Sistema 💻 : Rota não encontrada"));
+        console.log(chalk.yellow(`Sistema 💻 : Rota não encontrada - ${req.method} ${req.originalUrl}`));
         return res.status(StatusCodes.NOT_FOUND).json({
             error: {
                 message: "Not Found",
@@ -84,7 +114,7 @@ getDb().then((db) => {
     // Inicia o servidor
     const PORT = process.env.PORT || 3000;
     const httpServer = http.createServer(server);
-    const io = initSocket(httpServer, process.env.CLIENT_URL || "http://localhost:5173");
+    const io = initSocket(httpServer, clientUrl || "http://localhost:5173");
     server.set("io", io);
 
     httpServer.listen(PORT, '0.0.0.0', () => {
@@ -92,10 +122,12 @@ getDb().then((db) => {
     });
 });
 
-// Ping automático para evitar que o Render durma
-const PING_URL = process.env.PING_URL || "https://apisubaulas.onrender.com/api/v1/";
-setInterval(() => {
-    fetch(PING_URL)
-        .then(() => console.log("Ping enviado para manter o Render acordado"))
-        .catch(() => console.log("Falha ao enviar ping (Render pode estar dormindo)"));
-}, 1000 * 60 * 14); // a cada 14 minutos (menos que 15 para garantir)
+// Ping automático para evitar que o Render durma (caso configurado)
+const PING_URL = process.env.PING_URL || (isProd ? "https://back-sumo.onrender.com/" : null);
+if (PING_URL) {
+    setInterval(() => {
+        fetch(PING_URL)
+            .then(() => console.log("Ping enviado para manter o Render acordado"))
+            .catch(() => console.log("Falha ao enviar ping (Render pode estar dormindo)"));
+    }, 1000 * 60 * 14); // a cada 14 minutos
+}

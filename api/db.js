@@ -131,9 +131,8 @@ export async function connectDb() {
   try {
     console.log("Connecting to MongoDB...");
     client = new MongoClient(url, { 
-      connectTimeoutMS: 3000, 
-      serverSelectionTimeoutMS: 3000,
-      tlsAllowInvalidCertificates: true
+      connectTimeoutMS: 15000, 
+      serverSelectionTimeoutMS: 15000
     });
     await client.connect();
     const dbName = url.split("/").pop().split("?")[0] || "torneio_sumo";
@@ -141,7 +140,11 @@ export async function connectDb() {
     db.client = client;
     console.log("Connected successfully to MongoDB Database. ✅");
   } catch (error) {
-    console.error("MongoDB Connection Error Detail:", error);
+    console.error("MongoDB Connection Error Detail:", error.message || error);
+    if (String(error).includes("alert number 80") || String(error).includes("ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR")) {
+      console.error("⚠️ ALERTA: O MongoDB Atlas rejeitou o IP da conexão (SSL alert 80).");
+      console.error("⚠️ Solução: Acesse o MongoDB Atlas > Network Access > Adicione '0.0.0.0/0' (Allow Access from Anywhere).");
+    }
     console.warn("Could not connect to MongoDB. Falling back to IN-MEMORY DATABASE for local preview. ⚠️");
     db = new MockDb();
   }

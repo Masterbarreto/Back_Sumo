@@ -5,7 +5,10 @@ let io = null;
 export const initSocket = (httpServer, origin) => {
   io = new Server(httpServer, {
     cors: {
-      origin: origin || "http://localhost:5173",
+      origin: (requestOrigin, callback) => {
+        // Permite conexões do frontend (Vercel, localhost, etc.)
+        callback(null, true);
+      },
       credentials: true,
     },
   });

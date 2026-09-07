@@ -10,6 +10,9 @@
     "start": "node api/server/serves.js",
     "dev": "nodemon api/server/serves.js"
   },
+  "engines": {
+    "node": ">=20.0.0 <23.0.0"
+  },
   "dependencies": {
     "@segment/analytics-node": "^2.2.1",
     "bcrypt": "^5.1.1",

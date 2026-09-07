@@ -69,11 +69,12 @@ export async function loginUser(req, res) {
         );
 
         // Injetar o token JWT diretamente em um Cookie HttpOnly
+        const isProd = process.env.NODE_ENV === "production";
         const cookieConfig = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            domain: process.env.COOKIE_DOMAIN || undefined,
+            secure: isProd,
+            sameSite: isProd ? "none" : "lax",
+            domain: isProd ? undefined : (process.env.COOKIE_DOMAIN || undefined),
         };
 
         if (isRemember) {

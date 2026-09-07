@@ -13,11 +13,12 @@ async function logoutUser(req, res) {
         }
         
         // Limpar o cookie de autenticação
+        const isProd = process.env.NODE_ENV === "production";
         res.clearCookie("token", {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            domain: process.env.COOKIE_DOMAIN || undefined,
+            secure: isProd,
+            sameSite: isProd ? "none" : "lax",
+            domain: isProd ? undefined : (process.env.COOKIE_DOMAIN || undefined),
         });
 
         return res.status(200).json({ message: "Sessão encerrada com sucesso" });
