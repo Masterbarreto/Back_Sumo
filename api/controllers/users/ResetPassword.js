@@ -1,4 +1,4 @@
-// filepath: api-mongo/api/controllers/users/ResetPassword.js
+// filepath: api/controllers/users/ResetPassword.js
 import { getDb } from "../../db.js";
 import bcrypt from "bcrypt";
 import chalk from "chalk";
@@ -8,7 +8,7 @@ async function ResetPassWord(req, res) {
 
     try {
         const db = await getDb();
-        const usersCollection = db.collection("professores");
+        const usersCollection = db.collection("users");
 
         // Verifica se o usuário existe
         const user = await usersCollection.findOne({ email });
@@ -25,7 +25,7 @@ async function ResetPassWord(req, res) {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await usersCollection.updateOne(
             { email },
-            { $set: { password: hashedPassword }, $unset: { resetCode: "" } }
+            { $set: { password: hashedPassword, senha_hash: hashedPassword }, $unset: { resetCode: "" } }
         );
 
         console.log(chalk.green(`Sistema 💻 : Senha atualizada com sucesso para o usuário: ${email}`));

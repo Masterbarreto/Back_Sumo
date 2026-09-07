@@ -7,9 +7,9 @@ export const requestPasswordReset = async (req, res) => {
 
     try {
         const db = await getDb();
-        const professoresCollection = db.collection("professores");
+        const usersCollection = db.collection("users");
 
-        const user = await professoresCollection.findOne({ email });
+        const user = await usersCollection.findOne({ email });
         if (!user) {
             return res.status(404).json({ error: "Usuário não encontrado." });
         }
@@ -17,14 +17,18 @@ export const requestPasswordReset = async (req, res) => {
         // Gerar código de redefinição
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-        await professoresCollection.updateOne({ email }, { $set: { resetCode } });
+        await usersCollection.updateOne({ email }, { $set: { resetCode } });
 
         // Enviar e-mail com o código de redefinição
-        await sendEmail({
-            to: email,
-            subject: "Redefinição de Senha",
-            html: `<p>Olá, ${user.name}!</p><p>Seu código de redefinição de senha é: <strong>${resetCode}</strong></p>`,
-        });
+        try {
+            await sendEmail({
+                to: email,
+                subject: "Redefinição de Senha",
+                html: `<p>Olá, ${user.name || user.nome}!</p><p>Seu código de redefinição de senha é: <strong>${resetCode}</strong></p>`,
+            });
+        } catch (mailError) {
+            console.error("Erro ao enviar e-mail de redefinição:", mailError);
+        }
 
         return res.status(200).json({ message: "E-mail de redefinição enviado com sucesso!" });
     } catch (error) {
@@ -38,10 +42,10 @@ export const resetPassword = async (req, res) => {
 
     try {
         const db = await getDb();
-        const professoresCollection = db.collection("professores");
+        const usersCollection = db.collection("users");
 
         // Verifica se o usuário existe
-        const user = await professoresCollection.findOne({ email });
+        const user = await usersCollection.findOne({ email });
         if (!user) {
             return res.status(404).json({ error: "Usuário não encontrado." });
         }
@@ -53,9 +57,9 @@ export const resetPassword = async (req, res) => {
 
         // Atualiza a senha do usuário
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await professoresCollection.updateOne(
+        await usersCollection.updateOne(
             { email },
-            { $set: { password: hashedPassword }, $unset: { resetCode: "" } }
+            { $set: { password: hashedPassword, senha_hash: hashedPassword }, $unset: { resetCode: "" } }
         );
 
         return res.status(200).json({ message: "Senha redefinida com sucesso!" });

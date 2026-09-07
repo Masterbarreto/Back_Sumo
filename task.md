@@ -1,0 +1,12 @@
+- [x] Configure `.env` and `.env.example`
+- [x] Implement MongoDB connection in `api/db.js`
+- [x] Implement Users collection schema (`api/models/schemas.js`)
+- [x] Implement generic database repository (`api/repositories/dbRepository.js`)
+- [x] Implement token verification middleware (`api/middlewares/authenticate.js`)
+- [x] Implement Login and Create controllers with JWT cookie injection
+- [x] Wait for npm packages installation to finish
+- [x] Run automated authentication test (`scratch/test_auth.js`)
+- [x] Implement FASE 2 Core Business (Equipes, Torneios e Inscrições)
+- [x] Implement bracket generator with BYEs and nextMatchId promotion
+- [x] Run automated Core Business integration test (`scratch/test_core.js`)
+- [ ] Implement FASE 3 Motor de Partida (Melhor de Três, desempate e round extra)

@@ -1,4 +1,4 @@
-// filepath: d:\Projeto de Aulas\api Mongo\api\controllers\users\Delete.js
+// filepath: api/controllers/users/Delete.js
 import { ObjectId } from "mongodb";
 import { getDb } from "../../db.js"; 
 import chalk from "chalk";
@@ -6,10 +6,10 @@ import chalk from "chalk";
 export async function deleteUser(req, res) {
     const { id } = req.params;
     const db = await getDb();
-    const professoresCollection = db.collection("professores");
+    const usersCollection = db.collection("users");
     
     try {
-        const result = await professoresCollection.deleteOne({ _id: new ObjectId(id) });
+        const result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
         if (result.deletedCount === 0) {
             return res.status(404).json({ message: "Usuário não encontrado" });
         }

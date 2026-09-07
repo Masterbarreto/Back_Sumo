@@ -3,6 +3,9 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import path from "node:path";
+import cookieParser from "cookie-parser";
+import http from "http";
+import { initSocket } from "../sockets/index.js";
 import apiRedirect from "../routes/index.js";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
@@ -15,7 +18,13 @@ import { getDb } from "../db.js";
 const server = express();
 
 server.use(morgan("dev"));
-server.use(cors());
+server.use(
+    cors({
+        origin: process.env.CLIENT_URL || "http://localhost:5173",
+        credentials: true,
+    })
+);
+server.use(cookieParser(process.env.COOKIE_SECRET || "insira_um_segredo_para_assinar_os_cookies"));
 server.use(express.json());
 server.use(express.urlencoded({ extended: true }));
 
@@ -74,7 +83,11 @@ getDb().then((db) => {
 
     // Inicia o servidor
     const PORT = process.env.PORT || 3000;
-    server.listen(PORT, '0.0.0.0', () => {
+    const httpServer = http.createServer(server);
+    const io = initSocket(httpServer, process.env.CLIENT_URL || "http://localhost:5173");
+    server.set("io", io);
+
+    httpServer.listen(PORT, '0.0.0.0', () => {
         console.log(chalk.green(`Sistema 💻 : Servidor rodando na porta ${PORT}`));
     });
 });

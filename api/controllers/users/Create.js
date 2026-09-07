@@ -24,9 +24,9 @@ export const createUser = async (req, res) => {
 
     try {
         const db = await getDb();
-        const professoresCollection = db.collection("professores");
+        const usersCollection = db.collection("users");
 
-        const existingUser = await professoresCollection.findOne({ email });
+        const existingUser = await usersCollection.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ error: "E-mail já cadastrado." });
         }
@@ -36,35 +36,44 @@ export const createUser = async (req, res) => {
         // Gerar código de validação
         const validationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-        const result = await professoresCollection.insertOne({
+        const result = await usersCollection.insertOne({
             email,
-            password: hashedPassword,
-            name,
-            cargo,
-            isVerified: false, // Adiciona o campo de verificação
-            validationCode, // Salva o código de validação
+            password: hashedPassword, // compatibilidade
+            senha_hash: hashedPassword, // especificação
+            name, // compatibilidade
+            nome: name, // especificação
+            cargo, // compatibilidade
+            role: cargo.toUpperCase(), // especificação (PROFESSOR, ALUNO)
+            isVerified: false,
+            validationCode,
         });
 
-        console.log(chalk.green(`Sistema 💻 : Professor Cadastrado com Sucesso: ${result.insertedId} ✅`));
-
-        // Caminho para o arquivo HTML
-        const templatePath = path.resolve("public/pages/codeVrifi.html");
-        let html = fs.readFileSync(templatePath, "utf-8");
-
-        // Substituir o placeholder {{validationCode}} pelo código gerado
-        html = html.replace("{{validationCode}}", validationCode);
+        console.log(chalk.green(`Sistema 💻 : Usuário Cadastrado com Sucesso: ${result.insertedId} ✅`));
 
         // Enviar e-mail com o código de validação
-        await sendEmail({
-            to: email,
-            subject: "Código de Validação",
-            html,
-        });
+        try {
+            const templatePath = path.resolve("public/pages/codeVrifi.html");
+            let html = fs.readFileSync(templatePath, "utf-8");
+            html = html.replace("{{validationCode}}", validationCode);
 
-        return res.status(201).json({
+            await sendEmail({
+                to: email,
+                subject: "Código de Validação",
+                html,
+            });
+        } catch (mailError) {
+            console.error("Erro ao enviar e-mail de validação:", mailError);
+            // Prossegue mesmo se falhar o e-mail em dev (ou opcionalmente retorna erro)
+        }
+
+        const responseData = {
             message: "Usuário criado com sucesso! Verifique seu e-mail para validar a conta.",
             userId: result.insertedId,
-        });
+        };
+        if (process.env.NODE_ENV === "development") {
+            responseData.validationCode = validationCode;
+        }
+        return res.status(201).json(responseData);
     } catch (error) {
         console.error("Erro ao criar usuário:", error);
         return res.status(500).json({ error: "Erro interno no servidor" });

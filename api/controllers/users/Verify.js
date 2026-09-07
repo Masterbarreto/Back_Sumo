@@ -5,9 +5,9 @@ export const verifyUser = async (req, res) => {
 
     try {
         const db = await getDb();
-        const professoresCollection = db.collection("professores");
+        const usersCollection = db.collection("users");
 
-        const user = await professoresCollection.findOne({ email });
+        const user = await usersCollection.findOne({ email });
         if (!user) {
             return res.status(404).json({ error: "Usuário não encontrado." });
         }
@@ -20,7 +20,7 @@ export const verifyUser = async (req, res) => {
             return res.status(400).json({ error: "Código de validação inválido." });
         }
 
-        await professoresCollection.updateOne(
+        await usersCollection.updateOne(
             { email },
             { $set: { isVerified: true }, $unset: { validationCode: "" } }
         );

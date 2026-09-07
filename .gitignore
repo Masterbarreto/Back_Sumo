@@ -37,3 +37,4 @@ coverage/
 *.bak
 *.tmp
 .vercel
+scratch/
