@@ -11,6 +11,34 @@ function toObjectId(id) {
   }
 }
 
+function processQuery(query) {
+  if (!query || typeof query !== "object") return query;
+  if (query instanceof ObjectId || query instanceof Date || query instanceof RegExp) {
+    return query;
+  }
+  if (Array.isArray(query)) {
+    return query.map(processQuery);
+  }
+  const processed = {};
+  for (const [key, val] of Object.entries(query)) {
+    if (key === "_id" && typeof val === "string") {
+      const objId = toObjectId(val);
+      processed[key] = objId || val;
+    } else if (
+      typeof val === "object" &&
+      val !== null &&
+      !(val instanceof ObjectId) &&
+      !(val instanceof Date) &&
+      !(val instanceof RegExp)
+    ) {
+      processed[key] = processQuery(val);
+    } else {
+      processed[key] = val;
+    }
+  }
+  return processed;
+}
+
 export class BaseRepository {
   constructor(collectionName) {
     this.collectionName = collectionName;
@@ -23,21 +51,12 @@ export class BaseRepository {
 
   async find(query = {}, options = {}) {
     const col = await this.getCollection();
-    // Pre-process queries that check for _id
-    const processedQuery = { ...query };
-    if (processedQuery._id && typeof processedQuery._id === "string") {
-      processedQuery._id = toObjectId(processedQuery._id);
-    }
-    return col.find(processedQuery, options).toArray();
+    return col.find(processQuery(query), options).toArray();
   }
 
   async findOne(query = {}, options = {}) {
     const col = await this.getCollection();
-    const processedQuery = { ...query };
-    if (processedQuery._id && typeof processedQuery._id === "string") {
-      processedQuery._id = toObjectId(processedQuery._id);
-    }
-    return col.findOne(processedQuery, options);
+    return col.findOne(processQuery(query), options);
   }
 
   async insertOne(doc) {
@@ -48,20 +67,22 @@ export class BaseRepository {
 
   async updateOne(query, updateSpec) {
     const col = await this.getCollection();
-    const processedQuery = { ...query };
-    if (processedQuery._id && typeof processedQuery._id === "string") {
-      processedQuery._id = toObjectId(processedQuery._id);
-    }
-    return col.updateOne(processedQuery, updateSpec);
+    return col.updateOne(processQuery(query), updateSpec);
   }
 
   async deleteOne(query) {
     const col = await this.getCollection();
-    const processedQuery = { ...query };
-    if (processedQuery._id && typeof processedQuery._id === "string") {
-      processedQuery._id = toObjectId(processedQuery._id);
-    }
-    return col.deleteOne(processedQuery);
+    return col.deleteOne(processQuery(query));
+  }
+
+  async updateMany(query, updateSpec) {
+    const col = await this.getCollection();
+    return col.updateMany(processQuery(query), updateSpec);
+  }
+
+  async deleteMany(query) {
+    const col = await this.getCollection();
+    return col.deleteMany(processQuery(query));
   }
 }
 

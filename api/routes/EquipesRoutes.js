@@ -8,7 +8,9 @@ import {
   updateTeamStatus,
   addMember,
   removeMember,
-  updateMemberDocStatus
+  updateMemberDocStatus,
+  deleteTeam,
+  transferMember
 } from "../controllers/Equipes/TeamController.js";
 
 const router = express.Router();
@@ -22,6 +24,8 @@ router.use(authenticate);
 
 router.post("/", createTeam);
 router.post("/join", joinTeam);
+router.post("/transfer-member", transferMember);
+router.delete("/:id", deleteTeam);
 router.put("/:id/status", updateTeamStatus);
 
 // Members routes

@@ -1,4 +1,4 @@
-import { TeamRepository, toObjectId } from "../../repositories/dbRepository.js";
+import { TeamRepository, UserRepository, toObjectId } from "../../repositories/dbRepository.js";
 import yup from "yup";
 
 // Validate team creation
@@ -21,12 +21,15 @@ export const createTeam = async (req, res) => {
 
     const teamCode = `#RA-2026-${Math.floor(100 + Math.random() * 900)}`;
     const protocolo = `NR-2026-${Math.floor(10000 + Math.random() * 89999)}-X`;
+    const prefix = (nome || "TEAM").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase();
+    const captainCode = `CAP-${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newTeamDoc = {
       nome: nome.trim(),
       fullName: fullName || nome.trim(),
       teamId: teamCode,
       protocolo,
+      captainCode,
       instituicao: instituicao || "Senac Hub Academy",
       criadorId,
       status: "PENDENTE",
@@ -44,6 +47,7 @@ export const createTeam = async (req, res) => {
       _id: team.insertedId || team._id,
       teamId: teamCode,
       protocolo,
+      captainCode,
     });
   } catch (error) {
     return res.status(400).json({ error: error.message });
@@ -52,30 +56,55 @@ export const createTeam = async (req, res) => {
 
 export const joinTeam = async (req, res) => {
   try {
-    const { teamCode, teamId, role, memberData } = req.body;
-    let query = {};
-    if (teamId) {
-      query._id = teamId;
-    } else if (teamCode) {
-      const cleanCode = teamCode.trim();
-      query = { $or: [{ teamId: cleanCode }, { nome: new RegExp(`^${cleanCode}$`, "i") }] };
-    } else {
-      return res.status(400).json({ error: "Código ou identificador da equipe é obrigatório." });
+    const { captainCode, role, memberData } = req.body;
+    if (!captainCode || !captainCode.trim()) {
+      return res.status(400).json({ error: "O Código de Convite do Capitão é obrigatório para ingressar nesta equipe." });
     }
 
-    const team = await TeamRepository.findOne(query);
+    const cleanCode = captainCode.trim().toUpperCase();
+    const team = await TeamRepository.findOne({
+      $or: [
+        { captainCode: cleanCode },
+        { captainCode: new RegExp(`^${cleanCode}$`, "i") }
+      ]
+    });
+
     if (!team) {
-      return res.status(404).json({ error: "Equipe não encontrada com o código informado." });
+      return res.status(404).json({ error: "Código do Capitão inválido ou inexistente. Solicite o código de acesso ao líder da equipe." });
     }
 
-    if (team.members && team.members.length >= 5) {
-      return res.status(400).json({ error: "Esta equipe já atingiu o limite máximo de 5 integrantes." });
+    const currentMembers = team.members || [];
+    if (currentMembers.length >= 5) {
+      return res.status(400).json({ error: "Esta equipe já atingiu o limite máximo de 5 integrantes permitidos pelo regulamento." });
     }
 
     const memberName = memberData?.name || req.user?.name || "Novo Integrante";
     const memberEmail = memberData?.email || req.user?.email || "";
     const memberCpf = memberData?.cpf || `000.000.${Math.floor(100 + Math.random() * 899)}-00`;
-    const initials = memberName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    const initials = memberName.split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2) || "AL";
+
+    // Verificar se já é membro da equipe para evitar duplicidade
+    const alreadyMember = currentMembers.find(
+      (m) => (memberEmail && m.email && m.email.toLowerCase() === memberEmail.toLowerCase()) ||
+             (m.name && m.name.toLowerCase() === memberName.toLowerCase())
+    );
+
+    if (alreadyMember) {
+      return res.status(200).json({
+        message: "Você já faz parte desta equipe!",
+        team: {
+          id: team._id.toString(),
+          _id: team._id.toString(),
+          name: team.nome || team.name,
+          nome: team.nome || team.name,
+          code: team.teamId,
+          captainCode: team.captainCode,
+          robotName: team.robotName || team.robot || "Kensei Blade 3.0",
+          members: currentMembers,
+        },
+        member: alreadyMember,
+      });
+    }
 
     const newMember = {
       id: Math.random().toString(36).substring(2, 9),
@@ -87,7 +116,7 @@ export const joinTeam = async (req, res) => {
       role: role || memberData?.role || "Competidor Técnico",
       cpf: memberCpf,
       rg: memberData?.rg || "",
-      docStatus: "pending",
+      docStatus: "approved",
       history: [{ date: new Date().toLocaleString("pt-BR"), label: "Entrada na Equipe", type: "neutral" }],
     };
 
@@ -100,10 +129,13 @@ export const joinTeam = async (req, res) => {
       message: "Você ingressou na equipe com sucesso!",
       team: {
         id: team._id.toString(),
-        name: team.nome,
+        _id: team._id.toString(),
+        name: team.nome || team.name,
+        nome: team.nome || team.name,
         code: team.teamId,
-        robotName: team.robotName || "Kensei Blade 3.0",
-        members: [...(team.members || []), newMember]
+        captainCode: team.captainCode,
+        robotName: team.robotName || team.robot || "Kensei Blade 3.0",
+        members: [...currentMembers, newMember]
       },
       member: newMember
     });
@@ -419,3 +451,170 @@ export const updateMemberDocStatus = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+export const deleteTeam = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const objId = toObjectId(id);
+    const team = await TeamRepository.findOne({
+      $or: [
+        ...(objId ? [{ _id: objId }] : []),
+        { _id: id },
+        { teamId: id }
+      ]
+    });
+
+    if (!team) {
+      return res.status(404).json({ error: "Equipe não encontrada." });
+    }
+
+    await TeamRepository.deleteOne({ _id: team._id });
+
+    // Desvincula equipe dos usuários associados
+    await UserRepository.updateMany(
+      {
+        $or: [
+          { teamId: team._id.toString() },
+          { teamId: team.teamId },
+          { teamName: team.nome || team.name }
+        ]
+      },
+      {
+        $unset: { teamId: "", teamName: "" }
+      }
+    );
+
+    return res.status(200).json({
+      message: `Equipe "${team.nome || team.name}" excluída com sucesso.`
+    });
+  } catch (error) {
+    console.error("Erro ao excluir equipe:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const transferMember = async (req, res) => {
+  const { fromTeamId, toTeamId, memberIdentifier } = req.body;
+
+  try {
+    if (!fromTeamId || !toTeamId || !memberIdentifier) {
+      return res.status(400).json({
+        error: "Dados insuficientes para transferência (fromTeamId, toTeamId e memberIdentifier são obrigatórios)."
+      });
+    }
+
+    if (fromTeamId === toTeamId) {
+      return res.status(400).json({
+        error: "A equipe de destino deve ser diferente da equipe de origem."
+      });
+    }
+
+    const fromTeam = await TeamRepository.findOne({
+      $or: [{ _id: fromTeamId }, { teamId: fromTeamId }, { nome: fromTeamId }]
+    });
+    if (!fromTeam) {
+      return res.status(404).json({ error: "Equipe de origem não encontrada." });
+    }
+
+    const toTeam = await TeamRepository.findOne({
+      $or: [{ _id: toTeamId }, { teamId: toTeamId }, { nome: toTeamId }]
+    });
+    if (!toTeam) {
+      return res.status(404).json({ error: "Equipe de destino não encontrada." });
+    }
+
+    if (fromTeam._id.toString() === toTeam._id.toString()) {
+      return res.status(400).json({
+        error: "A equipe de destino deve ser diferente da equipe de origem."
+      });
+    }
+
+    const targetMembers = toTeam.members || [];
+    if (targetMembers.length >= 5) {
+      return res.status(400).json({
+        error: "A equipe de destino já atingiu o limite máximo de 5 integrantes permitidos."
+      });
+    }
+
+    const sourceMembers = fromTeam.members || [];
+    const memberIndex = sourceMembers.findIndex(m =>
+      m.id === memberIdentifier ||
+      m.cpf === memberIdentifier ||
+      (m.email && m.email.toLowerCase() === String(memberIdentifier).toLowerCase()) ||
+      (m.name && m.name.toLowerCase() === String(memberIdentifier).toLowerCase())
+    );
+
+    if (memberIndex === -1) {
+      return res.status(404).json({ error: "Integrante não encontrado na equipe de origem." });
+    }
+
+    const member = sourceMembers[memberIndex];
+
+    // Verificar se integrante já existe na equipe de destino
+    const alreadyInTarget = targetMembers.some(m =>
+      (m.cpf && member.cpf && m.cpf === member.cpf) ||
+      (m.email && member.email && m.email.toLowerCase() === member.email.toLowerCase())
+    );
+    if (alreadyInTarget) {
+      return res.status(400).json({ error: "Este participante já faz parte da equipe de destino." });
+    }
+
+    // Remover da equipe de origem
+    const updatedSourceMembers = sourceMembers.filter((_, idx) => idx !== memberIndex);
+    await TeamRepository.updateOne(
+      { _id: fromTeam._id },
+      { $set: { members: updatedSourceMembers } }
+    );
+
+    // Preparar integrante com nova equipe e histórico de auditoria
+    const nowStr = new Date().toLocaleString("pt-BR");
+    const historyItem = {
+      date: nowStr,
+      label: `Transferido para ${(toTeam.nome || toTeam.name)}`,
+      type: "neutral",
+      by: req.user?.role || "Admin",
+      note: `Transferido da equipe "${fromTeam.nome || fromTeam.name}" pelo Administrador`
+    };
+
+    const updatedMember = {
+      ...member,
+      team: (toTeam.nome || toTeam.name).toUpperCase(),
+      history: [historyItem, ...(member.history || [])]
+    };
+
+    const updatedTargetMembers = [...targetMembers, updatedMember];
+    await TeamRepository.updateOne(
+      { _id: toTeam._id },
+      { $set: { members: updatedTargetMembers } }
+    );
+
+    // Atualizar vínculo se usuário existir na coleção users
+    if (member.email || member.cpf) {
+      await UserRepository.updateMany(
+        {
+          $or: [
+            ...(member.email ? [{ email: member.email.toLowerCase() }] : []),
+            ...(member.cpf ? [{ cpf: member.cpf }] : [])
+          ]
+        },
+        {
+          $set: {
+            teamId: toTeam._id.toString(),
+            teamName: toTeam.nome || toTeam.name
+          }
+        }
+      );
+    }
+
+    return res.status(200).json({
+      message: `Participante "${member.name}" transferido para a equipe "${toTeam.nome || toTeam.name}" com sucesso!`,
+      member: updatedMember,
+      fromTeamId: fromTeam._id.toString(),
+      toTeamId: toTeam._id.toString()
+    });
+  } catch (error) {
+    console.error("Erro ao transferir integrante:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+

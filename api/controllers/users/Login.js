@@ -82,12 +82,66 @@ export async function loginUser(req, res) {
 
         res.cookie("token", token, cookieConfig);
 
+        // Verificar vínculo com equipes existentes
+        let teamId = user.teamId;
+        let teamName = user.teamName;
+        let captainCode = user.captainCode;
+        let robotName = user.robotName;
+
+        const teamsCollection = db.collection("teams");
+        let associatedTeam = null;
+
+        if (teamId) {
+            associatedTeam = await teamsCollection.findOne({
+                $or: [
+                    { _id: teamId },
+                    { teamId: teamId },
+                    { nome: teamName }
+                ]
+            });
+        }
+
+        if (!associatedTeam && (user.email || user.name || user.nome)) {
+            const userEmail = (user.email || "").trim();
+            const userName = (user.name || user.nome || "").trim();
+
+            associatedTeam = await teamsCollection.findOne({
+                $or: [
+                    { "members.email": { $regex: `^${userEmail}$`, $options: "i" } },
+                    { "membros.email": { $regex: `^${userEmail}$`, $options: "i" } },
+                    { "members.name": { $regex: `^${userName}$`, $options: "i" } },
+                    { "membros.nome": { $regex: `^${userName}$`, $options: "i" } },
+                    { captainEmail: { $regex: `^${userEmail}$`, $options: "i" } },
+                    { criadorId: user._id.toString() }
+                ]
+            });
+        }
+
+        if (associatedTeam) {
+            teamId = associatedTeam._id.toString();
+            teamName = associatedTeam.nome || associatedTeam.name;
+            captainCode = associatedTeam.captainCode;
+            robotName = associatedTeam.robotName || associatedTeam.robot || "Kensei Blade 3.0";
+
+            // Sincroniza os dados da equipe no cadastro do usuário se necessário
+            if (!user.teamId || !user.teamName) {
+                await usersCollection.updateOne(
+                    { _id: user._id },
+                    { $set: { teamId, teamName } }
+                );
+            }
+        }
+
         // NÃO retornar o token no corpo do JSON
         return res.status(200).json({
             message: "Login bem-sucedido ✅",
             userId: user._id,
             cargo: user.cargo || user.role,
             name: user.name || user.nome || "Nome não disponível",
+            teamId: teamId || undefined,
+            teamName: teamName || undefined,
+            captainCode: captainCode || undefined,
+            robotName: robotName || undefined,
         });
     } catch (error) {
         console.log(chalk.red(`Sistema 💻 : Erro ao fazer login: ${error.message} ❌`));
