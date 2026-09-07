@@ -2,6 +2,7 @@ import express from "express";
 import { authenticate } from "../middlewares/authenticate.js";
 import {
   createTeam,
+  joinTeam,
   getTeams,
   getTeamById,
   updateTeamStatus,
@@ -20,6 +21,7 @@ router.get("/:id", getTeamById);
 router.use(authenticate);
 
 router.post("/", createTeam);
+router.post("/join", joinTeam);
 router.put("/:id/status", updateTeamStatus);
 
 // Members routes

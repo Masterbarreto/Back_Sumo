@@ -8,28 +8,107 @@ const createTeamSchema = yup.object().shape({
 
 export const createTeam = async (req, res) => {
   try {
-    await createTeamSchema.validate(req.body);
-    const { nome } = req.body;
-    const criadorId = req.user.id; // from authentication middleware
+    const { nome, fullName, instituicao, members, arenas, robotName, category } = req.body;
+    if (!nome || !nome.trim()) {
+      return res.status(400).json({ error: "Nome da equipe é obrigatório." });
+    }
+    const criadorId = req.user ? req.user.id : "user-creator";
 
-    const existing = await TeamRepository.findOne({ nome });
+    const existing = await TeamRepository.findOne({ nome: nome.trim() });
     if (existing) {
       return res.status(400).json({ error: "Nome de equipe já cadastrado." });
     }
 
-    const team = await TeamRepository.insertOne({
-      nome,
-      fullName: nome,
-      teamId: `#RA-2026-${Math.floor(100 + Math.random() * 900)}`,
+    const teamCode = `#RA-2026-${Math.floor(100 + Math.random() * 900)}`;
+    const protocolo = `NR-2026-${Math.floor(10000 + Math.random() * 89999)}-X`;
+
+    const newTeamDoc = {
+      nome: nome.trim(),
+      fullName: fullName || nome.trim(),
+      teamId: teamCode,
+      protocolo,
+      instituicao: instituicao || "Senac Hub Academy",
       criadorId,
       status: "PENDENTE",
-      members: [],
-      arenas: [],
-    });
+      robotName: robotName || "Kensei Blade 3.0",
+      category: category || "Heavyweight Sumô 3kg (Autônomo)",
+      members: Array.isArray(members) ? members : [],
+      arenas: Array.isArray(arenas) ? arenas : ["Sumô"],
+      submittedAt: new Date().toISOString(),
+    };
 
-    return res.status(201).json(team);
+    const team = await TeamRepository.insertOne(newTeamDoc);
+    return res.status(201).json({
+      ...newTeamDoc,
+      id: team.insertedId || team._id,
+      _id: team.insertedId || team._id,
+      teamId: teamCode,
+      protocolo,
+    });
   } catch (error) {
     return res.status(400).json({ error: error.message });
+  }
+};
+
+export const joinTeam = async (req, res) => {
+  try {
+    const { teamCode, teamId, role, memberData } = req.body;
+    let query = {};
+    if (teamId) {
+      query._id = teamId;
+    } else if (teamCode) {
+      const cleanCode = teamCode.trim();
+      query = { $or: [{ teamId: cleanCode }, { nome: new RegExp(`^${cleanCode}$`, "i") }] };
+    } else {
+      return res.status(400).json({ error: "Código ou identificador da equipe é obrigatório." });
+    }
+
+    const team = await TeamRepository.findOne(query);
+    if (!team) {
+      return res.status(404).json({ error: "Equipe não encontrada com o código informado." });
+    }
+
+    if (team.members && team.members.length >= 5) {
+      return res.status(400).json({ error: "Esta equipe já atingiu o limite máximo de 5 integrantes." });
+    }
+
+    const memberName = memberData?.name || req.user?.name || "Novo Integrante";
+    const memberEmail = memberData?.email || req.user?.email || "";
+    const memberCpf = memberData?.cpf || `000.000.${Math.floor(100 + Math.random() * 899)}-00`;
+    const initials = memberName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+
+    const newMember = {
+      id: Math.random().toString(36).substring(2, 9),
+      initials,
+      color: "#00356a",
+      name: memberName,
+      email: memberEmail,
+      memberId: `UID: NR-2026-${Math.floor(100 + Math.random() * 899)}`,
+      role: role || memberData?.role || "Competidor Técnico",
+      cpf: memberCpf,
+      rg: memberData?.rg || "",
+      docStatus: "pending",
+      history: [{ date: new Date().toLocaleString("pt-BR"), label: "Entrada na Equipe", type: "neutral" }],
+    };
+
+    await TeamRepository.updateOne(
+      { _id: team._id },
+      { $push: { members: newMember } }
+    );
+
+    return res.status(200).json({
+      message: "Você ingressou na equipe com sucesso!",
+      team: {
+        id: team._id.toString(),
+        name: team.nome,
+        code: team.teamId,
+        robotName: team.robotName || "Kensei Blade 3.0",
+        members: [...(team.members || []), newMember]
+      },
+      member: newMember
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 };
 
