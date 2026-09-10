@@ -1,8 +1,8 @@
 import nodemailer from "nodemailer";
 import "dotenv/config";
 
-const user = process.env.SMTP_USER || process.env.GMAIL_USER;
-const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_PASS;
+const user = (process.env.SMTP_USER || process.env.GMAIL_USER || "").trim();
+const pass = (process.env.SMTP_PASSWORD || process.env.GMAIL_PASS || "").replace(/\s+/g, "");
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
