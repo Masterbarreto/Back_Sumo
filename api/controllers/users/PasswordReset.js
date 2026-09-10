@@ -30,7 +30,12 @@ export const requestPasswordReset = async (req, res) => {
             console.error("Erro ao enviar e-mail de redefinição:", mailError);
         }
 
-        return res.status(200).json({ message: "E-mail de redefinição enviado com sucesso!" });
+        const responseData = { message: "E-mail de redefinição enviado com sucesso!" };
+        if (process.env.NODE_ENV === "development") {
+            responseData.resetCode = resetCode;
+        }
+
+        return res.status(200).json(responseData);
     } catch (error) {
         console.error("Erro ao solicitar redefinição de senha:", error);
         return res.status(500).json({ error: "Erro interno no servidor" });

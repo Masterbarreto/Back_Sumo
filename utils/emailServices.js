@@ -1,11 +1,16 @@
 import nodemailer from "nodemailer";
 import "dotenv/config";
 
+const user = process.env.SMTP_USER || process.env.GMAIL_USER;
+const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_PASS;
+
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: Number(process.env.SMTP_PORT) || 465,
+  secure: (Number(process.env.SMTP_PORT) || 465) === 465,
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
+    user,
+    pass,
   },
   tls: {
     rejectUnauthorized: false, // Ignora certificados autoassinados
@@ -15,7 +20,7 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async ({ to, subject, html }) => {
   try {
     const mailOptions = {
-      from: process.env.GMAIL_USER,
+      from: `"Torneio de Robótica" <${user}>`,
       to,
       subject,
       html,
