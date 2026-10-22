@@ -5,6 +5,11 @@ export const UserSchema = yup.object().shape({
   email: yup.string().email().required(),
   senha_hash: yup.string().required(),
   role: yup.string().oneOf(["PROFESSOR", "ALUNO"]).required(),
+  cpf: yup.string().nullable().optional(),
+  instituicao: yup.string().nullable().optional(),
+  lgpdAccepted: yup.boolean().default(true),
+  lgpdAcceptedAt: yup.date().default(() => new Date()),
+  lgpdVersion: yup.string().default("1.0"),
 });
 
 export const TeamSchema = yup.object().shape({

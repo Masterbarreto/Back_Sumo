@@ -18,6 +18,11 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendEmail = async ({ to, subject, html }) => {
+  if (process.env.NODE_ENV === "test") {
+    console.log(`[TEST MOCK] E-mail simulado para: ${to} | Assunto: ${subject}`);
+    return { response: "250 Test mock OK", messageId: "test-mock-id" };
+  }
+
   try {
     const mailOptions = {
       from: `"Torneio de Robótica" <${user}>`,

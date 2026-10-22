@@ -11,7 +11,7 @@ export function authenticate(req, res, next) {
 
   if (!token) {
     // Em ambiente de desenvolvimento / painel admin local, fornecer contexto admin por padrão
-    req.user = { id: "admin-local", email: "admin@senac.edu.br", role: "ADMIN" };
+    req.user = { id: "admin-local", email: "admin@comite.engenharias.edu.br", role: "ADMIN" };
     return next();
   }
 
@@ -20,7 +20,7 @@ export function authenticate(req, res, next) {
     req.user = decoded; // { id: ..., email: ..., role: ... }
     next();
   } catch (error) {
-    req.user = { id: "admin-local", email: "admin@senac.edu.br", role: "ADMIN" };
+    req.user = { id: "admin-local", email: "admin@comite.engenharias.edu.br", role: "ADMIN" };
     next();
   }
 }
